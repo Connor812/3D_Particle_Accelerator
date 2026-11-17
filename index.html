@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Synchrotron Lab – 3D Particle Accelerator</title>
+<style>
+:root{--panel:#fffffff0;--ink:#141a28;--mut:#5b6578;--line:#d5dbe6;--acc:#2f6bff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--panel:#0f1524ee;--ink:#e6ebf7;--mut:#8b96ae;--line:#222c44;--acc:#5b8dff}}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{background:#070a12;color:var(--ink);font:12.5px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+#stage{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.pn{position:fixed;top:56px;bottom:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;overflow-y:auto;backdrop-filter:blur(8px)}
+#R{right:12px;width:290px}#L{left:12px;width:240px}
+.nomenu .pn{display:none}
+#tb{position:fixed;top:10px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:5}
+button,select{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 9px;cursor:pointer}
+button:hover{border-color:var(--acc)}select{width:100%}
+h1{font-size:15px;margin:0 0 2px}.sub{color:var(--mut);font-size:11px;margin:2px 0 6px}
+h2{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin:10px 0 4px}
+details{border-top:1px solid var(--line);padding:6px 0}summary{cursor:pointer;font-weight:600}
+.row{margin:6px 0}.row label{display:flex;justify-content:space-between;gap:8px}
+.row output{color:var(--acc);font-variant-numeric:tabular-nums}input[type=range]{width:100%;accent-color:var(--acc);margin:2px 0 0}
+#status{padding:5px 8px;border-radius:8px;border:1px solid var(--line);margin:6px 0;font-weight:600}
+table{width:100%;border-collapse:collapse}td{padding:1px 0}td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.btns{display:flex;gap:6px;margin:6px 0}.btns button{flex:1}
+.chk{display:flex;gap:6px;align-items:center;margin:4px 0}
+.it{display:flex;align-items:center;gap:6px;padding:2px 0}.it i{width:9px;height:9px;border-radius:50%;flex:none}.it b{width:34px}.it span{flex:1;color:var(--mut)}.it em{font-style:normal;font-variant-numeric:tabular-nums}
+#info{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);width:min(640px,calc(100vw - 24px));max-height:44vh;overflow:auto;display:none;z-index:6;background:var(--panel);border:1px solid var(--acc);border-radius:12px;padding:10px 12px;backdrop-filter:blur(8px)}
+.ih{display:flex;justify-content:space-between;align-items:center;gap:8px}
+#how{margin:4px 0;line-height:1.45}#live{margin:6px 0;padding:6px 8px;border-radius:8px;border:1px solid var(--line);color:var(--mut)}#live b{color:var(--acc)}
+#parts{columns:2;column-gap:18px;margin:4px 0 0;padding:0;list-style:none;font-size:11.5px;color:var(--mut)}#parts li{break-inside:avoid;margin-bottom:5px}#parts b{color:var(--ink)}
+#lbls{position:fixed;inset:0;pointer-events:none;z-index:4}
+.lb{position:absolute;left:0;top:0;background:var(--panel);border:1px solid var(--acc);border-radius:10px;padding:1px 7px;font-size:11px;white-space:nowrap;margin:-9px 0 0 10px}
+.lb::before{content:"";position:absolute;left:-14px;top:50%;width:8px;height:8px;margin-top:-4px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 2px var(--panel)}
+#tip{position:fixed;display:none;pointer-events:none;z-index:7;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:2px 7px;font-size:11px}
+#leg{position:fixed;top:48px;left:50%;transform:translateX(-50%);display:none;z-index:5;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:3px 9px;font-size:11px}
+@media (max-width:760px){#parts{columns:1}#info{bottom:auto;top:56px;max-height:34vh}}
+@media (max-width:760px){#R,#L{left:8px;right:8px;width:auto;top:auto;bottom:8px;max-height:40vh}#L{display:none}}
+</style></head><body>
+<canvas id="stage"></canvas>
+<div id="tb"><button id="bMenu">☰ Menu (H)</button><button id="bCut">✂ Cutaway (C)</button><button id="bFoc">🎯 Collision point</button><button id="bOv">⟲ Overview</button><button id="bFld" title="Blue: magnetic field (steers and focuses). Gold: RF electric field (accelerates).">🧲 Field lines (F)</button></div>
+<div id="lbls"></div><div id="tip"></div><div id="leg"><span style="color:#5ac8ff">▬ magnetic field: steers &amp; focuses</span> · <span style="color:#ffd23f">▬ RF electric field: accelerates</span></div>
+<div id="info"><div class="ih"><h1 id="itl"></h1><button id="bX">✕ Exit (Esc)</button></div><div id="how"></div><div id="live"></div><ol id="parts"></ol></div>
+<div id="L" class="pn">
+  <h1>Collision products</h1>
+  <div class="sub">Events: <span id="nev">0</span> · tallies × “collisions per crossing”. Real colliders mostly make new particles; new <b>elements</b> appear when lead nuclei shatter (try the Lead preset).</div>
+  <button id="bClr" style="width:100%">Clear list</button>
+  <div id="list"></div>
+</div>
+<div id="R" class="pn">
+  <h1>Synchrotron Lab</h1>
+  <div class="sub">Drag: orbit · right-drag / Shift-drag: pan · wheel: pivot model · Shift+wheel: tilt · Ctrl+wheel: move in/out · <b>click any component to go inside it</b></div>
+  <div id="status">…</div><table id="ro"></table>
+  <div class="btns"><button id="bInj">Inject / restart</button><button id="bPause">Pause</button></div>
+  <select id="preset"><option value="">Presets…</option><option value="lhc">LHC-like proton collider</option><option value="pb">Lead-ion run (makes elements)</option><option value="lep">LEP-like electron ring</option><option value="tab">Tabletop proton booster</option></select>
+  <details open><summary>Beam</summary>
+    <div class="row"><label>Particle species</label><select id="species"><option value="p">Proton</option><option value="e">Electron</option><option value="pb">Lead ion (Pb⁸²⁺)</option></select></div><div id="c1"></div></details>
+  <details open><summary>Machine</summary><div id="c2"></div></details>
+  <details open><summary>Display &amp; collisions</summary><div id="c3"></div>
+    <label class="chk"><input type="checkbox" id="col" checked> Collider mode (counter-rotating beam)</label>
+    <label class="chk"><input type="checkbox" id="rot"> Auto-rotate camera</label></details>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const $=id=>document.getElementById(id),C=299792458,RHO_F=.66,RV=10,TAU=Math.PI*2;
+const SP={p:{m:.938272,q:1,A:1},e:{m:.000511,q:1,A:1},pb:{m:193.69,q:82,A:208}};
+const CFG=[
+{g:'c1',id:'Einj',l:'Injection kinetic energy',u:'GeV',min:.01,max:1000,v:.45,log:1,d:2},
+{g:'c1',id:'Etgt',l:'Target kinetic energy',u:'GeV',min:.1,max:1e6,v:7000,log:1,d:1},
+{g:'c1',id:'nb',l:'Bunches',min:1,max:8,v:4,step:1,d:0,build:1},
+{g:'c1',id:'np',l:'Particles per bunch',min:100,max:1500,v:600,step:100,d:0,build:1},
+{g:'c1',id:'size',l:'Beam emittance',u:'×',min:.2,max:3,v:1,d:2},
+{g:'c2',id:'R',l:'Ring radius',u:'m',min:10,max:5000,v:4243,log:1,d:0},
+{g:'c2',id:'Bmax',l:'Max dipole field',u:'T',min:.05,max:12,v:8.33,log:1,d:2},
+{g:'c2',id:'V',l:'RF voltage per turn',u:'MV',min:.1,max:5000,v:16,log:1,d:1},
+{g:'c2',id:'foc',l:'Quadrupole focusing',u:'×',min:.3,max:3,v:1,d:2},
+{g:'c2',id:'cells',l:'Magnet cells (drawn)',min:8,max:48,v:32,step:4,d:0,ring:1},
+{g:'c3',id:'lumi',l:'Collisions per crossing (tally)',u:'×',min:1,max:1e9,v:1e6,log:1,d:0},
+{g:'c3',id:'vis',l:'Visual speed',u:'rad/s',min:.05,max:500,v:1.2,log:1,d:2},
+{g:'c3',id:'lapse',l:'Time-lapse (real turns / drawn turn)',u:'×',min:1,max:1e6,v:50000,log:1,d:0},
+{g:'c3',id:'cut',l:'Cutaway height',u:'',min:-.5,max:1.5,v:.05,d:2}];
+const P={species:'p'},ctl={};
+const fromT=(c,t)=>{let v=c.log?c.min*Math.pow(c.max/c.min,t/1000):c.min+(c.max-c.min)*t/1000;if(c.step)v=Math.round(v/c.step)*c.step;return v};
+const toT=(c,v)=>c.log?1000*Math.log(v/c.min)/Math.log(c.max/c.min):1000*(v-c.min)/(c.max-c.min);
+const fmtV=(c,v)=>(v>=1000?Math.round(v).toLocaleString('en'):v.toFixed(c.d))+(c.u?' '+c.u:'');
+CFG.forEach(c=>{const row=document.createElement('div');row.className='row';
+  row.innerHTML='<label><span>'+c.l+'</span><output></output></label><input type="range" min="0" max="1000">';
+  $(c.g).appendChild(row);const inp=row.querySelector('input'),out=row.querySelector('output');ctl[c.id]={inp,out,c};P[c.id]=c.v;
+  const set=v=>{P[c.id]=v;out.textContent=fmtV(c,v)};set(c.v);inp.value=toT(c,c.v);
+  inp.addEventListener('input',()=>{set(fromT(c,+inp.value));if(c.build)buildBeam();if(c.ring)buildRing();if(c.id==='Einj')reset();if(c.id==='cut')applyCut()})});
+function setParam(id,v){const k=ctl[id];P[id]=v;k.inp.value=toT(k.c,v);k.out.textContent=fmtV(k.c,v)}
+$('species').onchange=e=>{P.species=e.target.value;reset()};
+const PRE={lhc:{species:'p',Einj:.45,Etgt:7000,R:4243,Bmax:8.33,V:16,lapse:50000,foc:1,nb:4},
+ pb:{species:'pb',Einj:22,Etgt:574000,R:4243,Bmax:8.33,V:16,lapse:50000,foc:1,nb:4},
+ lep:{species:'e',Einj:20,Etgt:100,R:4243,Bmax:.13,V:3500,lapse:5000,foc:1,nb:4},
+ tab:{species:'p',Einj:.2,Etgt:6,R:25,Bmax:1.5,V:.5,lapse:2000,foc:1.2,nb:3}};
+$('preset').onchange=e=>{const p=PRE[e.target.value];if(!p)return;Object.keys(p).forEach(k=>{if(k==='species'){P.species=p[k];$('species').value=p[k]}else setParam(k,p[k])});buildBeam();reset();e.target.value=''};
+
+/* physics */
+let Ek=0,theta=0,vturns=0,rturns=0,paused=false,lastK=0;
+function D(ek){const s=SP[P.species],m=s.m,q=s.q,rho=RHO_F*P.R,E=ek+m,p=Math.sqrt(Math.max(E*E-m*m,1e-18));
+ const pmax=.2998*q*P.Bmax*rho,Ekmax=Math.sqrt(pmax*pmax+m*m)-m,U0=8.85e-5*q*q*Math.pow(p,4)/rho*Math.pow(.000511/m,4),gain=q*P.V/1000;
+ return{m,q,A:s.A,E,p,beta:p/E,gamma:E/m,B:p/(.2998*q*rho),Ekmax,tgt:Math.min(P.Etgt,Ekmax),U0,gain,net:gain-U0,f:p/E*C/(TAU*P.R)}}
+function reset(){const s=D(P.Einj);Ek=Math.min(P.Einj,s.Ekmax);vturns=0;rturns=0;lastK=Math.floor(theta*P.nb/TAU)}
+function step(dt){let s=D(Ek);const dth=P.vis*Math.max(s.beta,.05)*dt;theta+=dth;const t=dth/TAU;vturns+=t;let rt=P.lapse*t;rturns+=rt;Ek=Math.min(Ek,Math.max(s.tgt,0));
+ for(let it=0;rt>1e-9&&it<60;it++){s=D(Ek);if(Ek>=s.tgt-1e-12||s.net<=0)break;const n=Math.min(rt,Math.max(.005*Ek,1e-6)/s.net);Ek=Math.min(s.tgt,Ek+n*s.net);rt-=n}}
+const fE=g=>g>=1e3?(g/1e3).toFixed(3)+' TeV':g>=1?g.toFixed(3)+' GeV':(g*1e3).toFixed(2)+' MeV';
+const fN=n=>n>=1e12?(n/1e12).toFixed(2)+' T':n>=1e9?(n/1e9).toFixed(2)+' G':n>=1e6?(n/1e6).toFixed(2)+' M':n>=1e3?(n/1e3).toFixed(1)+' k':n.toFixed(0);
+function readout(s){let st,col='var(--acc)';
+ if(P.Einj>s.Ekmax){st='Injection energy exceeds magnet limit';col='#ff6b6b'}
+ else if(s.net<=0&&Ek<s.tgt-1e-9){st='Stalled: radiation loss ≥ RF gain per turn';col='#ff6b6b'}
+ else if(Ek>=s.tgt-1e-9){st=s.tgt<P.Etgt?'Flat top at magnet limit':'Flat top – colliding';col='#3ddc97'}else st='Accelerating…';
+ $('status').textContent=st;$('status').style.color=col;
+ const r=[['Kinetic energy',fE(Ek)],['Collision √s per nucleon',fE(2*s.E/s.A)],['Lorentz γ',s.gamma.toFixed(2)],['Speed β',s.beta.toFixed(8)],['Dipole field',s.B.toFixed(3)+' T'],['Magnet limit (KE)',fE(s.Ekmax)],['Revolution freq.',(s.f/1e3).toFixed(3)+' kHz'],['RF gain / turn',fE(s.gain)],['Radiated / turn',fE(s.U0)],['Real turns',fN(rturns)]];
+ $('ro').innerHTML=r.map(x=>'<tr><td style="color:var(--mut)">'+x[0]+'</td><td>'+x[1]+'</td></tr>').join('')}
+
+/* scene */
+const canvas=$('stage'),renderer=new THREE.WebGLRenderer({canvas,antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.localClippingEnabled=true;
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x070a12);scene.fog=new THREE.Fog(0x070a12,50,120);
+const cam=new THREE.PerspectiveCamera(50,1,.05,300);
+scene.add(new THREE.AmbientLight(0x8899bb,.8));const dl=new THREE.DirectionalLight(0xffffff,.9);dl.position.set(8,14,6);scene.add(dl);
+const pl=new THREE.PointLight(0x88aaff,.7,50);pl.position.set(0,5,0);scene.add(pl);
+const plane=new THREE.Plane(new THREE.Vector3(0,-1,0),1e3);let cutOn=false;
+function applyCut(){plane.constant=cutOn?P.cut:1e3;M.tun.opacity=cutOn?.06:.14}
+const mt=(c,o)=>new THREE.MeshStandardMaterial(Object.assign({color:c,metalness:.45,roughness:.45,side:2,clippingPlanes:[plane]},o||{}));
+const M={cryo:mt(0xdfe5ee),steel:mt(0x59616e),blue:mt(0x2f6bff,{emissive:0x2f6bff,emissiveIntensity:.2}),yel:mt(0xf2c230),red:mt(0xd63a3a,{emissive:0xff4d4d,emissiveIntensity:.2}),gold:mt(0xe8b923,{emissive:0xffcc33,emissiveIntensity:.2}),coil:mt(0xff7a1a,{emissive:0xff7a1a,emissiveIntensity:.3}),dark:mt(0x20242c),tun:mt(0x8a93a6,{transparent:true,opacity:.14,depthWrite:false}),pipe:mt(0x9aa3b5,{metalness:.8}),floor:mt(0x232936)};
+const cyl=(r,l,m,x,y,z)=>{const o=new THREE.Mesh(new THREE.CylinderGeometry(r,r,l,20).rotateX(Math.PI/2),m);o.position.set(x||0,y||0,z||0);return o};
+const box=(w,h,d,m,x,y,z)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);return o};
+const grid=new THREE.GridHelper(90,90,0x1a2440,0x111a30);grid.position.y=-1.95;scene.add(grid);
+const flo=new THREE.Mesh(new THREE.RingGeometry(RV-1.5,RV+1.5,160).rotateX(-Math.PI/2),M.floor);flo.position.y=-1.9;scene.add(flo);
+
+scene.add(new THREE.Mesh(new THREE.TorusGeometry(RV,.1,12,200).rotateX(Math.PI/2),M.pipe));
+/* injector linac tangent at theta=pi */
+const lin=new THREE.Group();lin.position.set(-RV,0,0);lin.add(cyl(.14,9,M.pipe,0,0,-5.5));
+for(let k=0;k<9;k++){lin.add(cyl(.3,.3,M.gold,0,0,-1.6-k));lin.add(cyl(.26,.2,M.blue,0,0,-2.1-k))}
+lin.add(box(1,1,1,M.red,0,0,-10.8));lin.add(box(.2,1.4,.2,M.yel,0,-1.2,-3));lin.add(box(.2,1.4,.2,M.yel,0,-1.2,-8));scene.add(lin);
+/* detector at theta=0 */
+const det=new THREE.Group();det.position.set(RV,0,0);
+const lay=(r,l,c,op,w)=>det.add(new THREE.Mesh(new THREE.CylinderGeometry(r,r,l,32,1,true).rotateX(Math.PI/2),new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:op,side:2,wireframe:!!w,clippingPlanes:[plane],depthWrite:false})));
+lay(.55,1.8,0x44ff99,.6,1);lay(.85,2.2,0x4cc9a8,.3);lay(1.15,2.6,0xff9f43,.3);lay(1.35,2.8,0xc8d0dc,.4);lay(1.7,3.4,0x6f86b8,.3);
+[-1.8,1.8].forEach(z=>{const r=new THREE.Mesh(new THREE.RingGeometry(.15,1.7,32),new THREE.MeshBasicMaterial({color:0x6f86b8,transparent:true,opacity:.25,side:2,clippingPlanes:[plane],depthWrite:false}));r.position.z=z;det.add(r)});
+[-1.2,1.2].forEach(z=>det.add(box(.5,.35,.8,M.yel,0,-1.8,z)));scene.add(det);
+/* ring magnets */
+let ring=null;
+/* ===== detailed components, fields, learning mode ===== */
+const M2={paint:mt(0x1c6fd6,{metalness:.55,roughness:.32,emissive:0x0b3a88,emissiveIntensity:.1}),flange:mt(0x2c82e6,{metalness:.6,roughness:.3}),grey:mt(0x6b7078,{roughness:.8,metalness:.2}),shield:mt(0xc9d2de,{metalness:.9,roughness:.25}),he:mt(0x7fd6ff,{metalness:.2,roughness:.4}),yelc:mt(0xf0b400,{metalness:.5,roughness:.3}),lab:new THREE.MeshBasicMaterial({color:0xffc400,side:2,clippingPlanes:[plane]}),dng:new THREE.MeshBasicMaterial({color:0xe02020,side:2,clippingPlanes:[plane]}),glow:new THREE.MeshBasicMaterial({color:0xff2a2a,clippingPlanes:[plane]}),conc:mt(0x8d93a0,{roughness:.95,metalness:0}),blk:mt(0x15171c,{roughness:.6}),lamp:new THREE.MeshBasicMaterial({color:0xff9a2e,clippingPlanes:[plane]}),tube:new THREE.MeshBasicMaterial({color:0xf4f8ff,clippingPlanes:[plane]}),orange:mt(0xe86a10),rail:mt(0x9a8f7e,{roughness:.9}),pN:mt(0xff5a5a),pS:mt(0x5a8aff)};
+det.userData={type:'detector',a:0,L:1};lin.userData={type:'linac',a:Math.PI,L:1};
+function buildTunnel(){const Rt=1.8,cy=-.1,sh=new THREE.Mesh(new THREE.TorusGeometry(RV,Rt,16,200).rotateX(Math.PI/2),M.tun);sh.position.y=cy;scene.add(sh);
+ for(let i=0;i<48;i++){const a=i*TAU/48,r=new THREE.Mesh(new THREE.TorusGeometry(Rt,.05,6,28),M2.conc);r.position.set(RV*Math.cos(a),cy,RV*Math.sin(a));r.rotation.y=-a;scene.add(r)}
+ for(let i=0;i<36;i++){const a=(i+.5)*TAU/36,c=Math.cos(a),s=Math.sin(a),l=new THREE.Mesh(new THREE.BoxGeometry(.12,.05,.9),M2.tube);l.position.set((RV-.4)*c,cy+Rt-.12,(RV-.4)*s);l.rotation.y=-a;scene.add(l);
+  if(i%2===0){const q=new THREE.Mesh(new THREE.BoxGeometry(.1,.3,.16),M2.lamp);q.position.set((RV+1.42)*c,.9,(RV+1.42)*s);q.rotation.y=-a;scene.add(q)}}
+ const flat=(r0,r1,y,m)=>{const o=new THREE.Mesh(new THREE.RingGeometry(r0,r1,160).rotateX(-Math.PI/2),m);o.position.y=y;scene.add(o)};
+ flat(RV+.95,RV+1.5,.7,M2.rail);flat(RV+.95,RV+1.05,.71,M2.yelc);flat(RV-1.15,RV-1.05,-1.89,M2.orange);
+ const bp=new THREE.Mesh(new THREE.TorusGeometry(RV+.95,.1,8,200).rotateX(Math.PI/2),M2.blk);bp.position.y=-1.75;scene.add(bp)}
+function bolts(g,z){g.add((()=>{const t=new THREE.Mesh(new THREE.TorusGeometry(.46,.022,6,14),M2.grey);t.position.z=z;return t})())}
+function mkDipole(L){const d=new THREE.Group();
+ d.add(cyl(.44,L,M2.paint),cyl(.38,L*.98,M2.shield),cyl(.32,L*.97,M2.he),cyl(.26,L*.96,M.steel));
+ for(let k=-1;k<=1;k++){const t=new THREE.Mesh(new THREE.TorusGeometry(.19,.025,6,20),M.coil);t.position.z=k*L*.3;d.add(t)}
+ [-.32,0,.32].forEach(k=>d.add(cyl(.47,.09,M2.flange,0,0,k*L)));
+ [-1,1].forEach(s=>{d.add(cyl(.52,.08,M2.flange,0,0,s*L/2));bolts(d,s*(L/2+.05));d.add(cyl(.36,.02,M2.glow,0,0,s*(L/2+.05)))});
+ d.add(cyl(.04,.34,M2.yelc,.47,-.08,-.2),cyl(.04,.34,M2.yelc,.47,-.08,.2),box(.01,.12,.16,M2.lab,.445,.22,L*.18),box(.01,.1,.14,M2.dng,.445,.18,-L*.18));
+ [-1,1].forEach(s=>d.add(box(.55,1.4,.34,M2.grey,0,-1.15,s*L*.3)));
+ d.userData={type:'dipole',L};return d}
+function mkQ(ql){const q=new THREE.Group();
+ q.add(cyl(.38,ql,M.red),cyl(.42,.06,M2.flange,0,0,ql/2),cyl(.42,.06,M2.flange,0,0,-ql/2),cyl(.3,ql*.96,M.steel),box(.5,1.5,.3,M2.grey,0,-1.15,0));
+ for(let k=0;k<4;k++){const a=(45+90*k)*Math.PI/180,p=box(.09,.09,ql*.9,k%2?M2.pS:M2.pN,Math.cos(a)*.19,Math.sin(a)*.19,0);p.rotation.z=a;q.add(p);
+  const c=box(.1,.07,ql*.8,M.coil,Math.cos(a)*.27,Math.sin(a)*.27,0);c.rotation.z=a;q.add(c)}
+ q.userData={type:'quad',L:ql};return q}
+function mkRF(){const r=new THREE.Group();
+ r.add(cyl(.56,1.3,M.cryo),cyl(.6,.08,M2.flange,0,0,.65),cyl(.6,.08,M2.flange,0,0,-.65),cyl(.14,1.2,M.gold),box(.28,.6,.28,M.cryo,0,.85,0),box(.5,1.3,.3,M2.grey,0,-1.25,0));
+ [-1,0,1].forEach(k=>r.add(cyl(.46,.14,M.gold,0,0,k*.34)));r.userData={type:'rf',L:1};return r}
+/* field lines */
+const matB=new THREE.LineDashedMaterial({color:0x5ac8ff,dashSize:.1,gapSize:.07,transparent:true,opacity:.9}),matE=new THREE.LineDashedMaterial({color:0xffd23f,dashSize:.1,gapSize:.07,transparent:true,opacity:.95});
+const FL=[];let fieldOn=false,GB=[],GE=[],boff=0,eoff=0,sel=[];
+function addPoly(F,pts){let acc=0;for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1],l=Math.hypot(b[0]-a[0],b[1]-a[1],b[2]-a[2]);F.p.push(a[0],a[1],a[2],b[0],b[1],b[2]);F.d.push(acc,acc+l);acc+=l}}
+function fgeo(F){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(F.p,3));g.setAttribute('lineDistance',new THREE.Float32BufferAttribute(F.d.slice(),1));g.userData.base=Float32Array.from(F.d);return g}
+const ell=(cx,a,b,z)=>Array.from({length:25},(_,i)=>{const t=i/24*TAU;return[cx+a*Math.cos(t),b*Math.sin(t),z]});
+function dipF(L){const F={p:[],d:[]};[-.3,0,.3].forEach(z=>[.4,.65].forEach(a=>{addPoly(F,ell(a,a,.62,z*L));addPoly(F,ell(-a,a,.62,z*L))}));return F}
+function quadF(l){const F={p:[],d:[]};[-.4,0,.4].forEach(z=>{for(let k=0;k<4;k++){const a0=(45+90*k)*Math.PI/180,a1=a0+Math.PI/2,x0=Math.cos(a0)*.24,y0=Math.sin(a0)*.24,x1=Math.cos(a1)*.24,y1=Math.sin(a1)*.24;[.08,.4].forEach(f=>{const cx=(x0+x1)*f,cy=(y0+y1)*f;addPoly(F,Array.from({length:11},(_,i)=>{const t=i/10,u=1-t;return[u*u*x0+2*t*u*cx+t*t*x1,u*u*y0+2*t*u*cy+t*t*y1,z*l]}))})}});return F}
+function rfF(){const F={p:[],d:[]};[[.12,.12],[-.12,.12],[.12,-.12],[-.12,-.12],[0,.22],[0,-.22],[.22,0],[-.22,0]].forEach(p=>addPoly(F,[[p[0],p[1],-.6],[p[0],p[1],.6]]));return F}
+function shift(gs,off){gs.forEach(g=>{const a=g.attributes.lineDistance.array,b=g.userData.base;for(let i=0;i<a.length;i++)a[i]=b[i]+off;g.attributes.lineDistance.needsUpdate=true})}
+function animFields(dt,s){const bf=Math.min(1,s.B/P.Bmax);M2.paint.emissiveIntensity=.05+.4*bf;
+ if(fieldOn){boff-=dt*.5;eoff+=Math.sign(Math.sin(performance.now()/250))*dt*.8;shift(GB,boff);shift(GE,eoff);matB.opacity=.3+.7*bf}}
+function togField(){fieldOn=!fieldOn;FL.forEach(f=>f.visible=fieldOn);$('bFld').style.borderColor=fieldOn?'var(--acc)':'';$('leg').style.display=fieldOn?'block':'none'}
+$('bFld').onclick=togField;
+function buildRing(){if(ring){scene.remove(ring);ring.traverse(o=>o.geometry&&o.geometry.dispose())}
+ ring=new THREE.Group();FL.length=0;
+ const N=P.cells,da=TAU/N,arc=RV*da,L=arc*.56,ql=arc*.12,every=Math.max(1,Math.round(N/8));
+ const gD=fgeo(dipF(L)),gQ=fgeo(quadF(ql)),gE=fgeo(rfF());GB=[gD,gQ];GE=[gE];
+ const put=(g,a)=>{const ad=Math.atan2(Math.sin(a),Math.cos(a));if(Math.abs(ad)*RV<2.4)return;g.position.set(RV*Math.cos(a),0,RV*Math.sin(a));g.rotation.y=-a;g.userData.a=a;ring.add(g)};
+ const fl=(g,geo,m)=>{const f=new THREE.LineSegments(geo,m);f.visible=fieldOn;g.add(f);FL.push(f)};
+ for(let i=0;i<N;i++){const a=i*da;
+  const d=mkDipole(L);fl(d,gD,matB);put(d,a+da*.5);
+  const q=mkQ(ql);fl(q,gQ,matB);put(q,a+da*.1);
+  if(i%every===0){const r=mkRF();fl(r,gE,matE);put(r,a+da*.9)}}
+ scene.add(ring);sel=[det,lin].concat(ring.children)}
+/* learning mode */
+const DOC={
+dipole:{name:'Dipole (bending) magnet',how:'Charged particles feel the Lorentz force F = q·v×B, always at right angles to their motion. A vertical field therefore swings the beam round the ring without changing its speed. Bending radius and momentum are linked by p ≈ 0.3·B·ρ (GeV/c, tesla, metres), so the field is ramped up in step with the beam energy. Magnets steer; the RF cavities add the energy.',parts:[
+['Beam pipe','Ultra-high vacuum (~10⁻¹⁰ mbar) so the beam never meets gas molecules.',[0,-.1,0]],
+['Superconducting coils','Niobium-titanium cable at 1.9 K carries ~12,000 A and makes the strong field.',[0,-.19,.3]],
+['Iron yoke','Steel around the coils shapes the field and carries the magnetic flux.',[0,-.26,-.2]],
+['Helium vessel','A superfluid-helium bath keeps the coils superconducting.',[0,-.32,.12]],
+['Thermal shield','Reflective shield that blocks heat from reaching the cold mass.',[0,-.38,-.34]],
+['Vacuum vessel','Outer steel shell (the blue paint) insulates the cold parts in vacuum.',[0,-.44,.4]],
+['Support stand','Holds the magnet aligned to a fraction of a millimetre.',[0,-1.2,-.3]]]},
+quad:{name:'Quadrupole (focusing) magnet',how:'A quadrupole has four poles. Its field is zero on the axis and grows with distance, squeezing the beam in one plane while spreading it in the other. Alternating focusing and defocusing quadrupoles gives net focusing in both planes (“strong focusing”), so particles wiggle around the ideal orbit (betatron oscillations) instead of drifting into the wall.',parts:[
+['Beam pipe','Vacuum tube the beam travels through.',[0,-.1,0]],
+['Iron poles','Four poles alternate N-S-N-S (red/blue); field strength rises with distance from the axis.',[-.13,-.13,.25]],
+['Coils','Windings around each pole create the field.',[-.19,-.19,-.25]],
+['Iron yoke','Closes the magnetic circuit.',[0,-.3,.35]],
+['Outer shell','Housing and cooling jacket.',[0,-.38,-.4]]]},
+rf:{name:'RF accelerating cavity',how:'Inside the cavity a radio-frequency electric field oscillates along the beam direction. Each bunch arrives just as the field points forward and gains energy qV per turn; the field flips before the next bunch, which also keeps bunches tightly grouped. This is where the energy comes from. Light particles such as electrons radiate part of it away as synchrotron light.',parts:[
+['Beam pipe','The beam passes straight through the cavity cells.',[0,-.1,0]],
+['Accelerating cells','Resonant gold-plated chambers; the field across each gap pushes the bunch forward.',[0,-.46,-.34]],
+['Electric field','Gold dashed lines show the E-field along the beam, reversing every half cycle.',[.12,-.12,.17]],
+['Cryostat shell','Insulating outer housing around the cavity cells.',[0,-.56,.55]],
+['Support','Stand carrying the module.',[0,-1.2,0]]]},
+detector:{name:'Particle detector',how:'The beams cross at the centre. A solenoid magnet bends charged tracks so the tracker can measure momentum from their curvature. Calorimeters stop electrons, photons and hadrons and measure their energy; only muons (and invisible neutrinos) escape to the outer muon chambers. Combining all layers reveals which particles were created.',parts:[
+['Collision point','The two beams cross and collide here.',[0,0,0]],
+['Tracker','Silicon sensors map curved tracks of charged particles.',[0,-.55,-.5]],
+['EM calorimeter','Absorbs electrons and photons and measures their energy.',[0,-.85,.5]],
+['Hadron calorimeter','Absorbs protons, neutrons and pions.',[0,-1.15,-.5]],
+['Solenoid magnet','Strong field along the beam that curves the tracks.',[0,-1.35,.7]],
+['Muon chambers','Outermost layer: only muons reach it.',[0,-1.7,-.9]],
+['End cap','Covers the ends so few particles escape unseen.',[0,-1.2,1.8]]]},
+linac:{name:'Injector linac',how:'Particles start at an ion source and are accelerated in a straight line by RF cavities, with quadrupoles keeping the beam narrow. The linac gives the beam its injection energy: the main ring cannot take particles from rest because its magnets are far too weak at low field to hold them.',parts:[
+['Ion source','Strips electrons from atoms (or makes protons / electrons) to create the beam.',[0,-.55,-10.8]],
+['RF cavities (gold)','Accelerate the beam in steps along the line.',[0,-.3,-3.6]],
+['Focusing quadrupoles (blue)','Keep the beam narrow between cavities.',[0,-.26,-3.1]],
+['Beam line','Vacuum tube carrying the beam.',[0,-.14,-6]],
+['Injection point','The beam is kicked into the main ring here.',[0,0,-.4]]]}};
+let cur=null,prevCut=false;
+function enter(g){const t=g.userData.type,d=DOC[t];if(!cur)prevCut=cutOn;cur=g;if(!cutOn)togCut();
+ const wp=new THREE.Vector3();g.getWorldPosition(wp);if(t==='linac')wp.z-=5.5;
+ goal={t:wp,d:{dipole:3.2,quad:2.4,rf:3,detector:6.5,linac:9}[t],az:g.userData.a,el:.6};
+ $('info').style.display='block';$('itl').textContent=d.name;$('how').textContent=d.how;
+ $('parts').innerHTML=d.parts.map((p,i)=>'<li><b>'+(i+1)+' '+p[0]+'</b> – '+p[1]+'</li>').join('');
+ $('lbls').innerHTML=d.parts.map((p,i)=>'<div class="lb">'+(i+1)+' '+p[0]+'</div>').join('');liveInfo(D(Ek))}
+function exitDetail(){if(!cur)return;cur=null;$('info').style.display='none';$('lbls').innerHTML='';if(cutOn&&!prevCut)togCut();goal={t:new THREE.Vector3(),d:26,az:cs.az,el:.55}}
+$('bX').onclick=exitDetail;
+function updLabels(){if(!cur)return;const u=cur.userData.L||1,els=$('lbls').children,parts=DOC[cur.userData.type].parts;
+ for(let i=0;i<els.length;i++){const a=parts[i][2],v=cur.localToWorld(new THREE.Vector3(a[0],a[1],a[2]*u)).project(cam),e=els[i];
+  if(v.z>1||v.z<-1){e.style.display='none';continue}e.style.display='block';e.style.transform='translate('+((v.x*.5+.5)*innerWidth)+'px,'+((-v.y*.5+.5)*innerHeight)+'px)'}}
+function liveInfo(s){if(!cur)return;const t=cur.userData.type;let h;
+ if(t==='dipole')h='Field now <b>'+s.B.toFixed(3)+' T</b> (limit '+P.Bmax.toFixed(2)+' T) · bending radius <b>'+(RHO_F*P.R).toFixed(0)+' m</b> · momentum <b>'+fE(s.p)+'/c</b>';
+ else if(t==='quad')h='Focusing strength <b>'+P.foc.toFixed(2)+'×</b> · betatron tune <b>'+(2+2*P.foc).toFixed(1)+'</b> oscillations per turn';
+ else if(t==='rf')h='RF voltage <b>'+P.V.toFixed(1)+' MV</b> → gain <b>'+fE(s.gain)+'</b>/turn · radiated <b>'+fE(s.U0)+'</b>/turn · net <b>'+fE(s.net)+'</b>/turn';
+ else if(t==='detector')h='Collision energy <b>'+fE(2*s.E/s.A)+'</b> per nucleon pair · events so far <b>'+nEv+'</b>';
+ else h='Beam injected at <b>'+fE(P.Einj)+'</b> kinetic energy, then accelerated in the ring to <b>'+fE(Math.min(P.Etgt,s.Ekmax))+'</b>';
+ $('live').innerHTML=h}
+const rc=new THREE.Raycaster(),mv=new THREE.Vector2();
+function hit(e){mv.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);rc.setFromCamera(mv,cam);const h=rc.intersectObjects(sel,true);for(const x of h){let o=x.object;while(o&&!o.userData.type)o=o.parent;if(o)return o}return null}
+function pick(e){const g=hit(e);if(g)enter(g)}
+function hover(e){const g=hit(e),tp=$('tip');canvas.style.cursor=g?'pointer':'';tp.style.display=g?'block':'none';if(g){tp.textContent='Click to explore: '+DOC[g.userData.type].name;tp.style.left=(e.clientX+14)+'px';tp.style.top=(e.clientY+14)+'px'}}
+function buildRingOld(){if(ring){scene.remove(ring);ring.traverse(o=>o.geometry&&o.geometry.dispose())}
+ ring=new THREE.Group();const N=P.cells,da=TAU/N,arc=RV*da,every=Math.max(1,Math.round(N/8));
+ const put=(g,a)=>{const ad=Math.atan2(Math.sin(a),Math.cos(a));if(Math.abs(ad)*RV<2.4)return;g.position.set(RV*Math.cos(a),0,RV*Math.sin(a));g.rotation.y=-a;ring.add(g)};
+ for(let i=0;i<N;i++){const a=i*da,L=arc*.56,d=new THREE.Group();
+  d.add(cyl(.34,L,M.cryo),cyl(.22,L*1.01,M.steel),cyl(.36,.07,M.blue,0,0,L/2),cyl(.36,.07,M.blue,0,0,-L/2));
+  for(let k=-1;k<=1;k++){const t=new THREE.Mesh(new THREE.TorusGeometry(.19,.025,6,20),M.coil);t.position.z=k*L*.3;d.add(t)}
+  d.add(box(.18,1.56,.18,M.yel,0,-1.12,L*.32),box(.18,1.56,.18,M.yel,0,-1.12,-L*.32));put(d,a+da*.5);
+  const q=new THREE.Group(),ql=arc*.12;q.add(cyl(.3,ql,M.red),cyl(.31,.05,M.dark,0,0,ql/2),cyl(.31,.05,M.dark,0,0,-ql/2),box(.18,1.6,.18,M.yel,0,-1.14,0));put(q,a+da*.1);
+  if(i%every===0){const r=new THREE.Group();[-1,0,1].forEach(k=>r.add(cyl(.42,.1,M.gold,0,0,k*.3)));r.add(cyl(.14,.9,M.gold),box(.2,.5,.2,M.cryo,0,.5,0),box(.18,1.5,.18,M.yel,0,-1.1,0));put(r,a+da*.9)}}
+ scene.add(ring)}
+/* beams */
+let pts,pts2,G;const pm=new THREE.PointsMaterial({size:.045,transparent:true,opacity:.9,blending:THREE.AdditiveBlending,depthWrite:false}),pm2=pm.clone();
+const gauss=()=>Math.sqrt(-2*Math.log(Math.random()+1e-12))*Math.cos(TAU*Math.random());
+function buildBeam(){[pts,pts2].forEach(p=>p&&(scene.remove(p),p.geometry.dispose()));const n=P.nb*P.np;
+ G={p:new Float32Array(n),x:new Float32Array(n),y:new Float32Array(n),a:new Float32Array(n),b:new Float32Array(n)};
+ for(let i=0;i<n;i++){G.p[i]=gauss();G.x[i]=gauss();G.y[i]=gauss();G.a[i]=Math.random()*TAU;G.b[i]=Math.random()*TAU}
+ const mk=m=>{const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(n*3),3));const p=new THREE.Points(g,m);p.frustumCulled=false;scene.add(p);return p};
+ pts=mk(pm);pts2=mk(pm2);lastK=Math.floor(theta*P.nb/TAU)}
+function fill(pts,dir,s,st,sphi,Q){const pos=pts.geometry.attributes.position.array,nb=P.nb,np=P.np,n=nb*np;let k=0;
+ for(let b=0;b<nb;b++){const tb=dir*theta+b*TAU/nb;for(let i=0;i<np;i++){let j=b*np+i;if(dir<0)j=n-1-j;const th=tb+G.p[j]*sphi,r=RV+G.x[j]*st*Math.cos(Q*th+G.a[j]),v=G.y[j]*st*Math.cos(Q*th+G.b[j]);pos[k++]=r*Math.cos(th);pos[k++]=v;pos[k++]=r*Math.sin(th)}}
+ pts.geometry.attributes.position.needsUpdate=true}
+function updateBeam(s){const bg=s.p/s.m,bg0=Math.max(D(P.Einj).p/s.m,1e-3),sc=Math.sqrt(bg0/Math.max(bg,1e-3));
+ const st=Math.max(.006,.07*P.size*sc/Math.sqrt(P.foc)),sphi=.2/(1+Math.pow(P.V,.35)),Q=2+2*P.foc,col=$('col').checked;
+ fill(pts,1,s,st,sphi,Q);pts2.visible=col;if(col)fill(pts2,-1,s,st,sphi,Q);
+ const f=Math.min(1,Math.max(0,Math.log((Ek+1e-3)/(P.Einj+1e-3))/Math.log((s.tgt+1e-3)/(P.Einj+1e-3)+1e-9)));
+ pm.color.setHSL(.62-.1*f,1,.5+.4*f);pm2.color.setHSL(.08,1,.5+.4*f);
+ const bf=Math.min(1,s.B/P.Bmax);M.blue.emissiveIntensity=.1+.9*bf;M.coil.emissiveIntensity=.1+1.2*bf;M.red.emissiveIntensity=.15+.4*P.foc/3+.4*bf;
+ M.gold.emissiveIntensity=.25+.5*Math.abs(Math.sin(performance.now()/90))*Math.min(1,.3+Math.log10(1+P.V)/3)}
+
+/* collisions */
+const PT=[['Pions','π',2,0,'#7fd1ff'],['Kaons','K',2.6,0,'#ffb86b'],['Lambda hyperons','Λ',2.6,0,'#ff9ff3'],['Muons','μ',2.5,0,'#9bf6ff'],['Antiprotons','p̄',3.8,0,'#ff6b6b'],['Charm (J/ψ)','J/ψ',6,0,'#c792ea'],['Upsilon (bottom)','Υ',18,0,'#a78bfa'],['Photons','γ',1.2,0,'#ffffff'],['Z boson','Z⁰',91.2,1,'#ffd93d'],['W bosons','W±',161,1,'#6bcb77'],['Higgs boson','H⁰',250,1,'#ff4d94'],['Top quarks','t',350,1,'#f368e0']].map(a=>({name:a[0],sym:a[1],thr:a[2],hv:a[3],color:a[4],cat:'p'}));
+const LN=[['Deuterons','²H',5,'#9be564'],['Helium-3','³He',12,'#7bed9f'],['Anti-helium-3','³He̅',200,'#ff7675']].map(a=>({name:a[0],sym:a[1],thr:a[2],hv:0,color:a[3],cat:'e'}));
+const FR=[['Thallium','Tl','#b8c4ff',5],['Mercury','Hg','#d6d6e8',4],['Gold','Au','#ffd700',2],['Platinum','Pt','#e5e4e2',1.5],['Iridium','Ir','#cfd8dc',1.2],['Osmium','Os','#90a4ae',1],['Tungsten','W','#78909c',.8],['Hafnium','Hf','#a1887f',.6],['Barium','Ba','#a5d6a7',2],['Xenon','Xe','#b39ddb',2],['Tin','Sn','#bcaaa4',2],['Zirconium','Zr','#80cbc4',2],['Krypton','Kr','#ce93d8',2],['Iron','Fe','#ef9a9a',2],['Calcium','Ca','#fff59d',3],['Oxygen','O','#81d4fa',4],['Carbon','C','#8d8d8d',4],['Helium','He','#ffcc80',6],['Hydrogen','H','#ffffff',8]].map(a=>({name:a[0],sym:a[1],color:a[2],w:a[3],cat:'e'}));
+const EL={name:'Elastic scatters',sym:'·',color:'#888',cat:'p'};
+const tally={};let nEv=0;
+const bump=(t,n)=>{(tally[t.name]||(tally[t.name]={t,c:0})).c+=n};
+function crossing(s){const pb=P.species==='pb',sq=2*s.E/s.A,hv=P.species==='e'?1:6,items=[];
+ PT.concat(P.species==='e'?[]:LN).forEach(t=>{const th=t.thr*(t.hv?hv:1);if(sq>=th)items.push({t,n:Math.max(1,Math.round(Math.random()*(1+1.5*Math.log10(sq/th+1))*(pb?4:1)))})});
+ if(pb){const w=FR.reduce((a,f)=>a+f.w,0),nf=3+Math.floor(Math.random()*8);for(let i=0;i<nf;i++){let r=Math.random()*w,f=FR[0];for(const x of FR){r-=x.w;if(r<=0){f=x;break}}items.push({t:f,n:1})}}
+ nEv++;if(!items.length)bump(EL,P.lumi);else items.forEach(i=>bump(i.t,i.n*P.lumi));return items}
+function renderTally(){const arr=Object.values(tally).sort((a,b)=>a.t.cat===b.t.cat?b.c-a.c:a.t.cat==='e'?-1:1);let h='',cat='';
+ arr.forEach(k=>{if(k.t.cat!==cat){cat=k.t.cat;h+='<h2>'+(cat==='e'?'Elements &amp; nuclei':'Particles')+'</h2>'}h+='<div class="it"><i style="background:'+k.t.color+'"></i><b>'+k.t.sym+'</b><span>'+k.t.name+'</span><em>'+fN(k.c)+'</em></div>'});
+ $('list').innerHTML=h||'<div class="sub">No collisions yet – let the beam circulate.</div>';$('nev').textContent=nEv}
+$('bClr').onclick=()=>{for(const k in tally)delete tally[k];nEv=0;renderTally()};
+const sg=new THREE.SphereGeometry(1,12,10),mc={},bm=c=>mc[c]||(mc[c]=new THREE.MeshBasicMaterial({color:c}));
+const evs=[];
+function spawn(items,s){const g=new THREE.Group();g.position.set(RV,0,0);scene.add(g);const big=P.species==='pb',r0=big?.17:.08;
+ const mk=(c,z)=>{const m=new THREE.Mesh(sg,bm(c));m.scale.setScalar(r0);m.position.z=z;g.add(m);return m};
+ const ev={g,t:0,nuc:[mk('#5ee1ff',1.8),mk('#ffa24d',-1.8)],tr:[],r0};
+ const fm=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:1,blending:THREE.AdditiveBlending,depthWrite:false});ev.fl=new THREE.Mesh(sg,fm);ev.fl.visible=false;g.add(ev.fl);
+ const list=[];items.forEach(i=>{for(let k=0;k<Math.min(i.n,8);k++)list.push(i.t)});if(!list.length)for(let k=0;k<2;k++)list.push(EL);
+ list.sort(()=>Math.random()-.5).slice(0,40).forEach(t=>{const L=32,pts=new Float32Array(L*3),len=1.4+Math.random(),ct=2*Math.random()-1,sn=Math.sqrt(1-ct*ct),ph=Math.random()*TAU;
+  let vx=sn*Math.cos(ph),vy=sn*Math.sin(ph),vz=ct,x=0,y=0,z=0;const ds=len/L,da=t.sym==='γ'?0:ds/((.6+Math.random()*5)*(Math.random()<.5?1:-1));
+  for(let i=0;i<L;i++){pts.set([x,y,z],i*3);x+=vx*ds;y+=vy*ds;z+=vz*ds;const c=Math.cos(da),s2=Math.sin(da),nx=vx*c-vy*s2;vy=vx*s2+vy*c;vx=nx}
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(pts,3));geo.setDrawRange(0,0);
+  const lm=new THREE.LineBasicMaterial({color:t.color,transparent:true}),line=new THREE.Line(geo,lm),hd=new THREE.Mesh(sg,bm(t.color));hd.visible=false;g.add(line,hd);ev.tr.push({line,hd,pts,L,lm,r:t.cat==='e'?.07:.035})});
+ evs.push(ev)}
+function updEvents(dt){for(let i=evs.length-1;i>=0;i--){const e=evs[i];e.t+=dt;const t=e.t;
+ if(t<.35){const z=1.8*(1-t/.35);e.nuc[0].position.z=z;e.nuc[1].position.z=-z}
+ else{e.nuc.forEach(n=>n.visible=false);const u=t-.35;e.fl.visible=u<.7;e.fl.scale.setScalar(.1+u*3);e.fl.material.opacity=Math.max(0,1-u*1.5);
+  const prog=Math.min(1,u/.9),fade=t>1.6?Math.max(0,1-(t-1.6)/.8):1;
+  e.tr.forEach(k=>{const n=Math.max(2,Math.floor(prog*k.L));k.line.geometry.setDrawRange(0,n);k.lm.opacity=fade;k.hd.visible=fade>0;const j=(n-1)*3;k.hd.position.set(k.pts[j],k.pts[j+1],k.pts[j+2]);k.hd.scale.setScalar(k.r*fade)})}
+ if(t>2.5){scene.remove(e.g);e.tr.forEach(k=>{k.line.geometry.dispose();k.lm.dispose()});e.fl.material.dispose();evs.splice(i,1)}}}
+
+/* camera */
+const T=new THREE.Vector3(),cs={az:.7,el:.55,d:26};let drag=null,goal=null,gcut=0;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY,pan:e.button===2||e.shiftKey};goal=null;canvas.setPointerCapture(e.pointerId)});
+canvas.addEventListener('pointerup',e=>{if(drag&&!drag.pan&&Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)<5)pick(e);drag=null});
+canvas.addEventListener('pointermove',e=>{if(!drag){hover(e);return}const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;
+ if(drag.pan){const k=cs.d*.0016,r=new THREE.Vector3().setFromMatrixColumn(cam.matrix,0),u=new THREE.Vector3().setFromMatrixColumn(cam.matrix,1);T.addScaledVector(r,-dx*k).addScaledVector(u,dy*k)}
+ else{cs.az-=dx*.006;cs.el=clamp(cs.el+dy*.006,-1.5,1.5)}});
+canvas.addEventListener('wheel',e=>{e.preventDefault();goal=null;const w=e.deltaY||e.deltaX;
+ if(e.ctrlKey)cs.d=clamp(cs.d*(1+w*.0015),1.2,90);else if(e.shiftKey)cs.el=clamp(cs.el+w*.002,-1.5,1.5);else cs.az+=w*.0025},{passive:false});
+function resize(){renderer.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}addEventListener('resize',resize);
+const togMenu=()=>document.body.classList.toggle('nomenu'),togCut=()=>{cutOn=!cutOn;$('bCut').style.borderColor=cutOn?'var(--acc)':'';applyCut()};
+$('bMenu').onclick=togMenu;$('bCut').onclick=togCut;
+$('bFoc').onclick=()=>goal={t:new THREE.Vector3(RV,0,0),d:5};$('bOv').onclick=()=>goal={t:new THREE.Vector3(),d:26};
+addEventListener('keydown',e=>{if(/INPUT|SELECT/.test(e.target.tagName))return;if(e.key==='h'||e.key==='H')togMenu();if(e.key==='c'||e.key==='C')togCut();if(e.key==='f'||e.key==='F')togField();if(e.key==='Escape')exitDetail()});
+$('bInj').onclick=reset;$('bPause').onclick=e=>{paused=!paused;e.target.textContent=paused?'Resume':'Pause'};
+
+buildTunnel();buildRing();buildBeam();reset();resize();applyCut();renderTally();
+let last=performance.now(),nextDraw=0,fr=0,lastTal=0;
+function loop(now){const dt=Math.min((now-last)/1000,.05);last=now;
+ if(!paused){step(dt);if($('col').checked){const k=Math.floor(theta*P.nb/TAU);if(k>lastK){const s=D(Ek);let items=null;for(let i=0;i<Math.min(k-lastK,20);i++)items=crossing(s);lastK=k;if(items&&now>nextDraw&&evs.length<4){spawn(items,s);nextDraw=now+350}}}}
+ updEvents(paused?0:dt);if($('rot').checked)cs.az+=dt*.12;
+ if(goal){T.lerp(goal.t,.08);cs.d+=(goal.d-cs.d)*.08;if(goal.az!==undefined){let da=goal.az-cs.az;da-=TAU*Math.round(da/TAU);cs.az+=da*.08;cs.el+=(goal.el-cs.el)*.08}if(T.distanceTo(goal.t)<.01&&Math.abs(cs.d-goal.d)<.01)goal=null}
+ cam.position.set(T.x+cs.d*Math.cos(cs.el)*Math.cos(cs.az),T.y+cs.d*Math.sin(cs.el),T.z+cs.d*Math.cos(cs.el)*Math.sin(cs.az));cam.lookAt(T);
+ const s=D(Ek);updateBeam(s);animFields(dt,s);if(++fr%6===0){readout(s);liveInfo(s)}if(now-lastTal>300){renderTally();lastTal=now}
+ renderer.render(scene,cam);updLabels();requestAnimationFrame(loop)}
+requestAnimationFrame(loop);
+</script></body></html>
